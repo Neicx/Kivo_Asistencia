@@ -42,6 +42,18 @@ class Usuario(models.Model):
     estado = models.CharField(max_length=10, choices=[("activo", "Activo"), ("bloqueado", "Bloqueado")],default="activo")
     creado_en = models.DateTimeField(default=timezone.now)
 
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def is_active(self):
+        return self.estado == "activo"
+    
 class Marcas(models.Model):
     trabajador = models.ForeignKey(Trabajador,on_delete=models.PROTECT,null=True, blank=True)
     tipo_marca = models.CharField(max_length=10, choices=[("entrada", "Entrada"), ("salida", "Salida")])

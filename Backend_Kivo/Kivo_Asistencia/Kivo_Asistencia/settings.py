@@ -44,9 +44,10 @@ INSTALLED_APPS = [
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'login.authentication.UsuarioJWTAuthentication',
     )
 }
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -61,11 +62,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",
     "http://127.0.0.1:3000", 
     "http://192.168.56.1:3000",
+    "http://localhost:5173", 
 ]
 CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'Kivo_Asistencia.urls'
 AUTHENTICATION_BACKENDS = [
-    'login.backends.UsuarioBackend',  # ← AGREGA ESTA LÍNEA
+    'login.backends.UsuarioBackend',
 ]
 TEMPLATES = [
     {

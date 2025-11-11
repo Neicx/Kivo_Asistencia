@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from .models import Marcas, Trabajador
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'rut'
@@ -33,5 +34,43 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "apellido": user.trabajador.apellidos,
                 "cargo": user.trabajador.cargo,
             })
+        if not user or user.estado != "activo":
+            raise serializers.ValidationError("Credenciales inválidas")
 
         return data
+    
+class MarcaSerializer(serializers.ModelSerializer):
+    trabajador_nombre = serializers.CharField(source="trabajador.nombres", read_only=True)
+    trabajador_apellido = serializers.CharField(source="trabajador.apellidos", read_only=True)
+
+    class Meta:
+        model = Marcas
+        fields = [
+            "id",
+            "trabajador",
+            "trabajador_nombre",
+            "trabajador_apellido",
+            "tipo_marca",
+            "timestamp",
+        ]
+
+class MarcaBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marcas
+        fields = ["id", "tipo_marca", "timestamp"]
+
+class TrabajadorProfileSerializer(serializers.ModelSerializer):
+    marcas = MarcaBasicSerializer(many=True, read_only=True, source="marcas_set")
+
+    class Meta:
+        model = Trabajador
+        fields = [
+            "id",
+            "rut",
+            "nombres",
+            "apellidos",
+            "cargo",
+            "fecha_ingreso",
+            "estado",
+            "marcas",
+        ]
