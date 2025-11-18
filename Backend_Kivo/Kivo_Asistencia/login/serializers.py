@@ -40,20 +40,25 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
     
 class MarcaSerializer(serializers.ModelSerializer):
+    trabajador_rut = serializers.CharField(source="trabajador.rut", read_only=True)
     trabajador_nombre = serializers.CharField(source="trabajador.nombres", read_only=True)
     trabajador_apellido = serializers.CharField(source="trabajador.apellidos", read_only=True)
+    empresa = serializers.CharField(source="trabajador.empresa.razon_social", read_only=True)
+    hash = serializers.CharField(read_only=True)
 
     class Meta:
         model = Marcas
         fields = [
             "id",
-            "trabajador",
-            "trabajador_nombre",
-            "trabajador_apellido",
             "tipo_marca",
             "timestamp",
+            "hash",
+            "trabajador_rut",
+            "trabajador_nombre",
+            "trabajador_apellido",
+            "empresa",
         ]
-
+        
 class MarcaBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marcas

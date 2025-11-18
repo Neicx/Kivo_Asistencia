@@ -1,7 +1,16 @@
 from django.db import models
 from django.utils import timezone
-
+import hashlib
+import json
 # Create your models here.
+def canonical_string(data: dict) -> str:
+    return json.dumps(
+        data,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True
+    )
+
 class Empresa(models.Model):
     razon_social = models.CharField(max_length=255)
     rut_empresa = models.CharField(max_length=20, unique=True)
@@ -58,7 +67,26 @@ class Marcas(models.Model):
     trabajador = models.ForeignKey(Trabajador,on_delete=models.PROTECT,null=True, blank=True)
     tipo_marca = models.CharField(max_length=10, choices=[("entrada", "Entrada"), ("salida", "Salida")])
     timestamp = models.DateTimeField(default=timezone.now)
+    hash = models.CharField(max_length=64, editable=False)
 
+    def build_hash_payload(self):
+            """Datos que van a generar el hash"""
+            return {
+                "timestamp": self.timestamp.isoformat(),
+                "rut": self.trabajador.rut if self.trabajador else "",
+                "nombres": self.trabajador.nombres if self.trabajador else "",
+                "apellidos": self.trabajador.apellidos if self.trabajador else "",
+                "tipo_marca": self.tipo_marca,
+            }
+    def compute_sha256(self) -> str:
+        payload = self.build_hash_payload()
+        canonical = canonical_string(payload)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    def save(self, *args, **kwargs):
+        if not self.hash:
+            self.hash = self.compute_sha256()
+
+        super().save(*args, **kwargs)
 class Licencia(models.Model):
     trabajador = models.ForeignKey(Trabajador, on_delete=models.PROTECT, related_name="licencias")
     tipo = models.CharField(

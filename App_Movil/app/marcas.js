@@ -1,13 +1,6 @@
 // marcas.js
 import React, { useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
-} from "react-native";
+import { View,Text,TouchableOpacity,StyleSheet,SafeAreaView,Alert,Platform} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -136,40 +129,92 @@ export default function Marcas() {
     }
   };
 
-  const marcar = async (tipo_marca) => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        Alert.alert("Atención", "No hay token, vuelve a iniciar sesión.");
-        return;
+const confirmAlert = (title, message, onConfirm) => {
+  if (Platform.OS === "web") {
+    const ok = window.confirm(`${title}\n\n${message}`);
+    if (ok) onConfirm();
+  } else {
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Confirmar", onPress: onConfirm }
+      ]
+    );
+  }
+};
+
+
+const marcar = async (tipo_marca) => {
+  confirmAlert(
+    tipo_marca === "entrada" ? "Confirmar Entrada" : "Confirmar Salida",
+    `¿Deseas registrar tu ${tipo_marca}?`,
+    async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          Alert.alert("Atención", "No hay token, vuelve a iniciar sesión.");
+          return;
+        }
+
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ tipo_marca }),
+        });
+
+        const data = await res.json();
+        console.log("POST marcar:", data);
+
+        if (!res.ok) {
+          Alert.alert("Error", data.detail || "No se pudo registrar la marca");
+          return;
+        }
+
+        await fetchEstado();
+
+        const horaActual = new Date().toLocaleTimeString("es-CL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        // 🔹 Mensaje de éxito compatible Web/mobile
+        if (Platform.OS === "web") {
+          alert(
+            tipo_marca === "entrada"
+              ? `✓ Entrada registrada
+        Fecha/Hora: ${data.timestamp}
+        Trabajador: ${data.trabajador_nombre} ${data.trabajador_apellido}
+        RUT: ${data.trabajador_rut}
+        Empresa: ${data.empresa}
+        Hash: ${data.hash}`
+              : `✓ Salida registrada
+        Fecha/Hora: ${data.timestamp}
+        Trabajador: ${data.trabajador_nombre} ${data.trabajador_apellido}
+        RUT: ${data.trabajador_rut}
+        Empresa: ${data.empresa}
+        Hash: ${data.hash}`
+          );
+        } else {
+          Alert.alert(
+            "✓ Marca Registrada",
+            tipo_marca === "entrada"
+              ? `Tu entrada ha sido registrada correctamente.\n\nHora: ${horaActual}`
+              : `Tu salida ha sido registrada correctamente.\n\nHora: ${horaActual}`,
+            [{ text: "OK" }]
+          );
+        }
+
+      } catch (e) {
+        console.log("Error en marcar:", e);
+        Alert.alert("Error de Conexión", "No se pudo registrar la marca.");
       }
-
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ tipo_marca }),
-      });
-
-      const data = await res.json();
-      console.log("POST marcar:", data);
-
-      if (!res.ok) {
-        Alert.alert("Atención", data.detail || "Error al registrar marca");
-        return;
-      }
-
-      // Refrescamos el estado desde el servidor (tiene_entrada_activa y segundos_restantes)
-      await fetchEstado();
-
-      Alert.alert("OK", `Marca de ${tipo_marca} registrada`);
-    } catch (e) {
-      console.log("Error en marcar:", e);
-      Alert.alert("Error", "No se pudo registrar la marca.");
     }
-  };
+  );
+};
 
   return (
     <SafeAreaView style={styles.container}>
