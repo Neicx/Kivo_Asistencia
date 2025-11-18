@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 import hashlib
 import json
+from django.core.exceptions import ValidationError
 # Create your models here.
 def canonical_string(data: dict) -> str:
     return json.dumps(
@@ -88,7 +89,12 @@ class Marcas(models.Model):
 
         super().save(*args, **kwargs)
 class Licencia(models.Model):
-    trabajador = models.ForeignKey(Trabajador, on_delete=models.PROTECT, related_name="licencias")
+    trabajador = models.ForeignKey(
+        "Trabajador",
+        on_delete=models.PROTECT,
+        related_name="licencias"
+    )
+
     tipo = models.CharField(
         max_length=50,
         choices=[
@@ -97,20 +103,116 @@ class Licencia(models.Model):
             ("permiso_sin_goce", "Permiso sin goce de sueldo"),
         ]
     )
-    fecha_inicio = models.DateField()
-    fecha_fin = models.DateField()
-    dias = models.PositiveIntegerField()
-    motivo_detallado = models.TextField(blank=True, null=True)
-    creado_por = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name="licencias_creadas")
-    creado_en = models.DateTimeField(default=timezone.now)
 
-class Vacaciones(models.Model):
-    trabajador = models.ForeignKey(Trabajador, on_delete=models.PROTECT, related_name="vacaciones")
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
-    dias = models.PositiveIntegerField()
-    aprobado_por = models.ForeignKey(Usuario, on_delete=models.PROTECT, null=True, blank=True)
-    creado_en = models.DateTimeField(default=timezone.now)
+    dias = models.PositiveIntegerField(blank=True, null=True, help_text="Se calcula automáticamente si no se entrega")
+
+    motivo_detallado = models.TextField(blank=True, null=True)
+
+    archivo = models.FileField(
+        upload_to="licencias_pdfs/",
+        null=True,
+        blank=True
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        default="pendiente",
+        choices=[
+            ("pendiente", "Pendiente"),
+            ("aceptado", "Aceptado"),
+            ("rechazado", "Rechazado"),
+        ]
+    )
+
+    # Si tu modelo real de usuario es 'Usuario' (como en este archivo), referencia a 'Usuario'.
+    # Alternativa recomendada: usar settings.AUTH_USER_MODEL si usas custom user model como AUTH_USER_MODEL.
+    creado_por = models.ForeignKey(
+        "Usuario",  # o use settings.AUTH_USER_MODEL si corresponde
+        on_delete=models.PROTECT,
+        related_name="licencias_creadas",
+        null=True,
+        blank=True,
+        help_text="Usuario que creó la licencia (normalmente el trabajador)"
+    )
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        """Validaciones: fecha_fin no puede ser menor a fecha_inicio."""
+        if self.fecha_fin and self.fecha_inicio and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({"fecha_fin": "La fecha de fin no puede ser anterior a la fecha de inicio."})
+
+    def save(self, *args, **kwargs):
+        # validar fechas primero
+        try:
+            self.clean()
+        except ValidationError:
+            # re-raise para que DRF/migrations lo capture
+            raise
+
+        # calcular días (incluyendo ambos extremos)
+        if self.fecha_inicio and self.fecha_fin:
+            delta = (self.fecha_fin - self.fecha_inicio).days + 1
+            self.dias = max(0, delta)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Licencia #{self.id or '-'} - {self.trabajador} ({self.tipo})"
+class Vacaciones(models.Model):
+    trabajador = models.ForeignKey(
+        Trabajador,
+        on_delete=models.PROTECT,
+        related_name="vacaciones"
+    )
+
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    dias = models.PositiveIntegerField(blank=True, null=True)
+
+    estado = models.CharField(
+        max_length=20,
+        default="pendiente",
+        choices=[
+            ("pendiente", "Pendiente"),
+            ("aceptado", "Aceptado"),
+            ("rechazado", "Rechazado"),
+        ]
+    )
+
+    creado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="vacaciones_creadas",
+        null=True,
+        blank=True
+    )
+
+    resuelto_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="vacaciones_resueltas",
+        null=True,
+        blank=True
+    )
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+    resuelto_en = models.DateTimeField(null=True, blank=True)
+
+    def clean(self):
+        if self.fecha_fin and self.fecha_inicio and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({"fecha_fin": "La fecha de fin no puede ser menor a la fecha de inicio."})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        if self.fecha_inicio and self.fecha_fin:
+            self.dias = (self.fecha_fin - self.fecha_inicio).days + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Vacaciones #{self.id or '-'} - {self.trabajador}"
 class AuditoriaCambio(models.Model):
     usuario = models.ForeignKey(
         Usuario,
