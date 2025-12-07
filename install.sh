@@ -32,8 +32,19 @@ PY
 fi
 API_URL="http://${API_HOST}:8000/api"
 
+# Resolver comando de Python
+PYTHON_BIN="python3"
+if ! command -v python3 >/dev/null 2>&1; then
+  if command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+  else
+    echo "No se encontró python ni python3 en PATH. Instala Python 3 para continuar."
+    exit 1
+  fi
+fi
+
 echo "==> Instalando dependencias Backend (Python/Django)"
-python -m pip install -r "$BACKEND_DIR/requirements.txt"
+$PYTHON_BIN -m pip install -r "$BACKEND_DIR/requirements.txt"
 
 echo "==> Creando base de datos MySQL si no existe ($DB_NAME)"
 if command -v mysql >/dev/null 2>&1; then
@@ -43,7 +54,7 @@ else
 fi
 
 echo "==> Aplicando migraciones Backend"
-python "$BACKEND_DIR/manage.py" migrate
+$PYTHON_BIN "$BACKEND_DIR/manage.py" migrate
 
 echo "==> Instalando dependencias Frontend (npm)"
 if [ -f "$FRONTEND_DIR/package.json" ]; then
