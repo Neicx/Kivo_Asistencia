@@ -5,6 +5,7 @@ set -euo pipefail
 BACKEND_DIR="Backend_Kivo/Kivo_Asistencia"
 FRONTEND_DIR="Pagina_Web"
 MOBILE_DIR="App_Movil"
+VENV_DIR=".venv"
 
 # DB config (ajusta según tu entorno)
 DB_NAME="empresa_1"
@@ -15,8 +16,8 @@ DB_PORT="3306"
 
 # Detectar IP local (mejor esfuerzo). Si falla, usa loopback.
 API_HOST="127.0.0.1"
-if command -v python >/dev/null 2>&1; then
-  API_HOST=$(python - <<'PY'
+if command -v python3 >/dev/null 2>&1; then
+  API_HOST=$(python3 - <<'PY'
 import socket
 ip = "127.0.0.1"
 try:
@@ -43,8 +44,20 @@ if ! command -v python3 >/dev/null 2>&1; then
   fi
 fi
 
+# Crear/usar entorno virtual para evitar instalaciones globales
+echo "==> Preparando entorno virtual en $VENV_DIR"
+if [ ! -d "$VENV_DIR" ]; then
+  $PYTHON_BIN -m venv "$VENV_DIR"
+fi
+VENV_PY="$VENV_DIR/bin/python"
+if [ ! -x "$VENV_PY" ]; then
+  echo "No se encontró $VENV_PY. Verifica la creación del entorno virtual."
+  exit 1
+fi
+
 echo "==> Instalando dependencias Backend (Python/Django)"
-$PYTHON_BIN -m pip install -r "$BACKEND_DIR/requirements.txt"
+$VENV_PY -m pip install --upgrade pip
+$VENV_PY -m pip install -r "$BACKEND_DIR/requirements.txt"
 
 echo "==> Creando base de datos MySQL si no existe ($DB_NAME)"
 if command -v mysql >/dev/null 2>&1; then
@@ -54,7 +67,7 @@ else
 fi
 
 echo "==> Aplicando migraciones Backend"
-$PYTHON_BIN "$BACKEND_DIR/manage.py" migrate
+$VENV_PY "$BACKEND_DIR/manage.py" migrate
 
 echo "==> Instalando dependencias Frontend (npm)"
 if [ -f "$FRONTEND_DIR/package.json" ]; then
@@ -75,7 +88,7 @@ else
 fi
 
 echo "==> Listo. Para correr:"
-echo "Backend : cd $BACKEND_DIR && python manage.py runserver 0.0.0.0:8000"
+echo "Backend : cd $BACKEND_DIR && source $VENV_DIR/bin/activate && python manage.py runserver 0.0.0.0:8000"
 echo "Frontend: cd $FRONTEND_DIR && npm run dev -- --host"
 echo "Movil   : cd $MOBILE_DIR && npm run start  # o npm run android"
 echo ""
