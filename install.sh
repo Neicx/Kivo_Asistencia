@@ -33,14 +33,20 @@ PY
 fi
 API_URL="http://${API_HOST}:8000/api"
 
-# Resolver comando de Python
+# Resolver comando de Python; si falta, intenta instalar en Debian/Ubuntu
 PYTHON_BIN="python3"
 if ! command -v python3 >/dev/null 2>&1; then
   if command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
   else
-    echo "No se encontró python ni python3 en PATH. Instala Python 3 para continuar."
-    exit 1
+    echo "Python no encontrado. Intentando instalar python3 y python3-venv..."
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update && apt-get install -y python3 python3-venv python3-pip
+      PYTHON_BIN="python3"
+    else
+      echo "No se pudo instalar python automáticamente. Instálalo manualmente e intenta de nuevo."
+      exit 1
+    fi
   fi
 fi
 
@@ -60,11 +66,20 @@ $VENV_PY -m pip install --upgrade pip
 $VENV_PY -m pip install -r "$BACKEND_DIR/requirements.txt"
 
 echo "==> Creando base de datos MySQL si no existe ($DB_NAME)"
-if command -v mysql >/dev/null 2>&1; then
-  mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-else
-  echo "mysql CLI no encontrado. Crea la base $DB_NAME manualmente o instala MySQL client/server."
+if ! command -v mysql >/dev/null 2>&1; then
+  echo "mysql CLI no encontrado. Intentando instalar mariadb-server (Debian/Ubuntu)..."
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update && apt-get install -y mariadb-server mariadb-client
+  else
+    echo "No se pudo instalar mariadb/mysql automáticamente. Instala el cliente/servidor y crea la base $DB_NAME manualmente."
+    exit 1
+  fi
 fi
+
+mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || {
+  echo "No se pudo crear/verificar la base $DB_NAME. Verifica credenciales en install.sh y en settings.py"
+  exit 1
+}
 
 echo "==> Aplicando migraciones Backend"
 $VENV_PY "$BACKEND_DIR/manage.py" migrate
