@@ -20,13 +20,40 @@ export default function App() {
   const [error, setError] = useState("");
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [selectedTrabajadorId, setSelectedTrabajadorId] = useState(null);
+  const [empresas, setEmpresas] = useState([]);
+  const [empresaId, setEmpresaId] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("kivoUser");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    const storedAccess = localStorage.getItem("accessToken");
+    if (storedAccess) {
+      // nothing else, just avoid flashing logout
+    }
   }, []);
+
+  useEffect(() => {
+    const fetchEmpresas = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token || !user) return;
+      try {
+        const res = await fetch(`${API_URL}/empresas/asignadas/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setEmpresas(data);
+        if (data.length > 0) {
+          setEmpresaId((prev) => prev || data[0].id);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchEmpresas();
+  }, [user]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -40,7 +67,7 @@ export default function App() {
       });
 
       if (!res.ok) {
-        setError("RUT o contraseña inválidos");
+        setError("RUT o contrasena invalidos");
         setLoadingLogin(false);
         return;
       }
@@ -51,14 +78,19 @@ export default function App() {
 
       const displayUser = {
         name: data.user.nombre ? `${data.user.nombre} ${data.user.apellido || ""}`.trim() : data.user.rut,
-        role: data.user.rol,  // Corregido: era data.user.rut, ahora es data.user.rol
+        role: data.user.rol,
         access: data.access,
         refresh: data.refresh,
+        empresas: data.user.empresas || [],
       };
       localStorage.setItem("kivoUser", JSON.stringify(displayUser));
       setUser(displayUser);
+      if ((data.user.empresas || []).length > 0) {
+        setEmpresaId(data.user.empresas[0].id);
+        setEmpresas(data.user.empresas);
+      }
     } catch (err) {
-      setError("Error de conexión con el servidor");
+      setError("Error de conexion con el servidor");
     } finally {
       setLoadingLogin(false);
     }
@@ -71,11 +103,41 @@ export default function App() {
     setUser(null);
     setView("asistencias");
     setSelectedTrabajadorId(null);
+    setEmpresas([]);
+    setEmpresaId(null);
   };
 
   const handleVerPerfil = (trabajadorId) => {
     setSelectedTrabajadorId(trabajadorId);
     setView("perfil");
+  };
+
+  const renderPage = () => {
+    switch (view) {
+      case "asistencias":
+        return <Asistencias onVerPerfil={handleVerPerfil} empresaId={empresaId} />;
+      case "licencias":
+        return <Licencias user={user} empresaId={empresaId} />;
+      case "vacaciones":
+        return <Vacaciones user={user} empresaId={empresaId} />;
+      case "reportes":
+        return <Reportes />;
+      case "auditoria":
+        return <Auditoria user={user} empresaId={empresaId} empresas={empresas} />;
+      case "usuarios":
+        return (
+          <CrearUsuario
+            onVerPerfil={handleVerPerfil}
+            empresaId={empresaId}
+            empresas={empresas}
+            user={user}
+          />
+        );
+      case "perfil":
+        return <PerfilTrabajador trabajadorId={selectedTrabajadorId} user={user} empresas={empresas} />;
+      default:
+        return <Asistencias onVerPerfil={handleVerPerfil} empresaId={empresaId} />;
+    }
   };
 
   if (!user) {
@@ -87,7 +149,7 @@ export default function App() {
               <svg className="login-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <h2 className="login-title">Iniciar Sesión</h2>
+              <h2 className="login-title">Iniciar Sesion</h2>
             </div>
             <form onSubmit={handleLogin}>
               <div className="form-group">
@@ -103,12 +165,12 @@ export default function App() {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="password" className="form-label">Contraseña</label>
+                <label htmlFor="password" className="form-label">Contrasena</label>
                 <input
                   id="password"
                   className="form-input"
                   type="password"
-                  placeholder="Ingresa tu contraseña"
+                  placeholder="Ingresa tu contrasena"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -145,197 +207,44 @@ export default function App() {
           </div>
         </div>
 
-        {/* CSS embebido para el login */}
         <style>{`
-          /* Contenedor del login */
-          .login-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            font-family: 'Arial', sans-serif;
-          }
-
-          .login-card {
-            background-color: white;
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 28rem;
-          }
-
-          .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-          }
-
-          .login-icon {
-            width: 3rem;
-            height: 3rem;
-            color: #3b82f6;
-            margin-bottom: 1rem;
-          }
-
-          .login-title {
-            font-size: 1.875rem;
-            font-weight: bold;
-            color: #1f2937;
-            margin: 0;
-          }
-
-          .form-group {
-            margin-bottom: 1.5rem;
-          }
-
-          .form-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 0.5rem;
-          }
-
-          .form-input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            box-sizing: border-box;
-          }
-
-          .form-input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-          }
-
-          .error-message {
-            display: flex;
-            align-items: center;
-            color: #dc2626;
-            font-size: 0.875rem;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            background-color: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 0.5rem;
-          }
-
-          .error-icon {
-            width: 1.25rem;
-            height: 1.25rem;
-            margin-right: 0.5rem;
-            flex-shrink: 0;
-          }
-
-          .btn-login {
-            width: 100%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          }
-
-          .btn-login:hover:not(:disabled) {
-            background: linear-gradient(135deg, #2563eb, #1e40af);
-            transform: translateY(-1px);
-          }
-
-          .btn-login:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-          }
-
-          .btn-icon, .loading-spinner {
-            width: 1.25rem;
-            height: 1.25rem;
-            margin-right: 0.5rem;
-          }
-
-          .loading-spinner {
-            animation: spin 1s linear infinite;
-          }
-
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
+          .login-container { min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; padding: 1rem; font-family: 'Arial', sans-serif; }
+          .login-card { background-color: white; border-radius: 1rem; padding: 2rem; box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1); width: 100%; max-width: 28rem; }
+          .login-header { text-align: center; margin-bottom: 2rem; }
+          .login-icon { width: 3rem; height: 3rem; color: #3b82f6; margin-bottom: 1rem; }
+          .login-title { font-size: 1.875rem; font-weight: bold; color: #1f2937; margin: 0; }
+          .form-group { margin-bottom: 1.5rem; }
+          .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+          .form-input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; }
+          .form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+          .error-message { display: flex; align-items: center; color: #dc2626; font-size: 0.875rem; margin-bottom: 1rem; padding: 0.5rem; background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 0.5rem; }
+          .error-icon { width: 1.25rem; height: 1.25rem; margin-right: 0.5rem; flex-shrink: 0; }
+          .btn-login { width: 100%; display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; border-radius: 0.5rem; font-weight: 500; font-size: 1rem; cursor: pointer; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+          .btn-login:hover:not(:disabled) { background: linear-gradient(135deg, #2563eb, #1e40af); transform: translateY(-1px); }
+          .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+          .btn-icon, .loading-spinner { width: 1.25rem; height: 1.25rem; margin-right: 0.5rem; }
+          .loading-spinner { animation: spin 1s linear infinite; }
+          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         `}</style>
       </>
     );
   }
-
-  const renderPage = () => {
-    switch (view) {
-      case "asistencias":
-        return <Asistencias onVerPerfil={handleVerPerfil} />;
-      case "licencias":
-        return <Licencias user={user} />;
-      case "vacaciones":
-        return <Vacaciones user={user}/>;
-      case "reportes":
-        return <Reportes />;
-      case "auditoria":
-        return <Auditoria />;
-      case "usuarios":
-        return <CrearUsuario />;
-      case "perfil":
-        return <PerfilTrabajador trabajadorId={selectedTrabajadorId} />;
-      default:
-        return <Asistencias onVerPerfil={handleVerPerfil} />;
-    }
-  };
 
   return (
     <>
       <div className="app-root">
         <Sidebar view={view} setView={setView} user={user} />
         <div className="main">
-          <Header user={user} onLogout={handleLogout} />
+          <Header user={user} onLogout={handleLogout} empresas={empresas} empresaId={empresaId} onChangeEmpresa={setEmpresaId} />
           {renderPage()}
-          <div className="footer">© 2025 Sistema de Asistencia — Resolución Exenta N°38</div>
+          <div className="footer">© 2025 Sistema de Asistencia - Resolucion Exenta N°38</div>
         </div>
       </div>
 
-      {/* CSS embebido para el layout principal */}
       <style>{`
-        .app-root {
-          display: flex;
-          min-height: 100vh;
-          font-family: 'Arial', sans-serif;
-        }
-
-        .main {
-          flex: 1;
-          margin-left: 16rem;  /* Espacio para el sidebar fijo */
-          display: flex;
-          flex-direction: column;
-          min-height: 100vh;
-        }
-
-        .footer {
-          margin-top: auto;
-          text-align: center;
-          padding: 1rem;
-          background-color: #f9fafb;
-          border-top: 1px solid #e5e7eb;
-          font-size: 0.875rem;
-          color: #6b7280;
-        }
+        .app-root { display: flex; min-height: 100vh; font-family: 'Arial', sans-serif; }
+        .main { flex: 1; margin-left: 16rem; display: flex; flex-direction: column; min-height: 100vh; }
+        .footer { margin-top: auto; text-align: center; padding: 1rem; background-color: #f9fafb; border-top: 1px solid #e5e7eb; font-size: 0.875rem; color: #6b7280; }
       `}</style>
     </>
   );

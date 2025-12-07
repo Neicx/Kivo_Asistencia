@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 
 const API_URL = "http://192.168.56.1:8000/api";
 
-export default function Asistencias({ onVerPerfil }) {
+export default function Asistencias({ onVerPerfil, empresaId }) {
   const [data, setData] = useState([]);
   const [filterNombre, setFilterNombre] = useState("");
   const [filterFecha, setFilterFecha] = useState("");
@@ -13,9 +13,12 @@ export default function Asistencias({ onVerPerfil }) {
     const fetchAsistencias = async () => {
       try {
         const token = localStorage.getItem("accessToken");
-        const res = await fetch(`${API_URL}/asistencias/`, {
+        const url = new URL(`${API_URL}/asistencias/`);
+        if (empresaId) url.searchParams.append("empresa_id", empresaId);
+
+        const res = await fetch(url.toString(), {
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
@@ -30,7 +33,7 @@ export default function Asistencias({ onVerPerfil }) {
           const dt = new Date(m.timestamp);
           return {
             id: m.id,
-            trabajadorId: m.trabajador,
+            trabajadorId: m.trabajador_id,
             trabajador: `${m.trabajador_nombre} ${m.trabajador_apellido}`,
             fecha: dt.toISOString().slice(0, 10),
             hora: dt.toTimeString().slice(0, 5),
@@ -40,14 +43,14 @@ export default function Asistencias({ onVerPerfil }) {
         });
         setData(mapped);
       } catch (err) {
-        // Manejo de error silencioso
+        // ignore
       } finally {
         setLoading(false);
       }
     };
 
     fetchAsistencias();
-  }, []);
+  }, [empresaId]);
 
   const filtered = data.filter((d) => {
     return (
@@ -63,18 +66,13 @@ export default function Asistencias({ onVerPerfil }) {
     setFilterTipo("");
   };
 
-  // Función para exportar CSV
   const exportCSV = () => {
     if (filtered.length === 0) return alert("No hay registros para exportar.");
-
     const headers = ["Trabajador", "Fecha", "Hora", "Tipo", "Modificada por"];
     const rows = filtered.map((r) => [r.trabajador, r.fecha, r.hora, r.tipo, r.modificada_por]);
-
-    const csvContent =
-      [headers, ...rows]
-        .map((e) => e.map((v) => `"${v}"`).join(","))
-        .join("\n");
-
+    const csvContent = [headers, ...rows]
+      .map((e) => e.map((v) => `"${v}"`).join(","))
+      .join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -98,12 +96,7 @@ export default function Asistencias({ onVerPerfil }) {
               strokeDasharray="31.416"
               strokeDashoffset="31.416"
             >
-              <animate
-                attributeName="stroke-dashoffset"
-                dur="1s"
-                values="31.416;0"
-                repeatCount="indefinite"
-              />
+              <animate attributeName="stroke-dashoffset" dur="1s" values="31.416;0" repeatCount="indefinite" />
             </circle>
           </svg>
           <p>Cargando asistencias...</p>
@@ -117,11 +110,8 @@ export default function Asistencias({ onVerPerfil }) {
       <div className="asistencias-container">
         <h2 className="asistencias-title">Historial de Asistencias</h2>
 
-        {/* Filtros */}
         <div className="filters-card">
-          <h3 className="filters-title">
-            Filtros
-          </h3>
+          <h3 className="filters-title">Filtros</h3>
           <div className="filters-grid">
             <div className="filter-group">
               <label htmlFor="filterNombre" className="filter-label">Trabajador</label>
@@ -168,7 +158,6 @@ export default function Asistencias({ onVerPerfil }) {
           </div>
         </div>
 
-        {/* Tabla */}
         <div className="table-container">
           <table className="asistencias-table">
             <thead>
@@ -211,7 +200,6 @@ export default function Asistencias({ onVerPerfil }) {
         </div>
       </div>
 
-      {/* CSS embebido */}
       <style>{`
         .asistencias-container { min-height:100vh; padding:2rem 1rem; font-family: Arial,sans-serif; background:#f9fafb; }
         .asistencias-title { font-size:2.5rem; font-weight:bold; text-align:center; margin-bottom:2rem; color:#1f2937; }
