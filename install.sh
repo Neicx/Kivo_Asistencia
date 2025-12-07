@@ -76,8 +76,13 @@ if ! command -v mysql >/dev/null 2>&1; then
   fi
 fi
 
-mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || {
+MYSQL_CMD=(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER")
+[ -n "$DB_PASS" ] && MYSQL_CMD+=(-p"$DB_PASS")
+
+"${MYSQL_CMD[@]}" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || {
   echo "No se pudo crear/verificar la base $DB_NAME. Verifica credenciales en install.sh y en settings.py"
+  echo "Prueba editar DB_USER/DB_PASS o ejecutar manualmente:"
+  echo "  mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS"
   exit 1
 }
 
