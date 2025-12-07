@@ -7,12 +7,12 @@ FRONTEND_DIR="Pagina_Web"
 MOBILE_DIR="App_Movil"
 VENV_DIR=".venv"
 
-# DB config (ajusta según tu entorno)
-DB_NAME="empresa_1"
-DB_USER="root"
-DB_PASS=""
-DB_HOST="127.0.0.1"
-DB_PORT="3306"
+# DB config (se puede sobreescribir vía prompt)
+DB_NAME_DEFAULT="empresa_1"
+DB_USER_DEFAULT="root"
+DB_PASS_DEFAULT=""
+DB_HOST_DEFAULT="127.0.0.1"
+DB_PORT_DEFAULT="3306"
 
 # Detectar IP local (mejor esfuerzo). Si falla, usa loopback.
 API_HOST="127.0.0.1"
@@ -61,6 +61,19 @@ if [ ! -x "$VENV_PY" ]; then
   exit 1
 fi
 
+# Preguntar datos de DB
+read -rp "Nombre de la base de datos [$DB_NAME_DEFAULT]: " DB_NAME
+DB_NAME=${DB_NAME:-$DB_NAME_DEFAULT}
+read -rp "Usuario DB [$DB_USER_DEFAULT]: " DB_USER
+DB_USER=${DB_USER:-$DB_USER_DEFAULT}
+read -rp "Password DB (puede quedar vacío): " DB_PASS
+read -rp "Host DB [$DB_HOST_DEFAULT]: " DB_HOST
+DB_HOST=${DB_HOST:-$DB_HOST_DEFAULT}
+read -rp "Puerto DB [$DB_PORT_DEFAULT]: " DB_PORT
+DB_PORT=${DB_PORT:-$DB_PORT_DEFAULT}
+
+export DB_NAME DB_USER DB_PASS DB_HOST DB_PORT
+
 echo "==> Instalando dependencias Backend (Python/Django)"
 $VENV_PY -m pip install --upgrade pip
 $VENV_PY -m pip install -r "$BACKEND_DIR/requirements.txt"
@@ -79,12 +92,27 @@ fi
 MYSQL_CMD=(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER")
 [ -n "$DB_PASS" ] && MYSQL_CMD+=(-p"$DB_PASS")
 
-"${MYSQL_CMD[@]}" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || {
-  echo "No se pudo crear/verificar la base $DB_NAME. Verifica credenciales en install.sh y en settings.py"
-  echo "Prueba editar DB_USER/DB_PASS o ejecutar manualmente:"
-  echo "  mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS"
-  exit 1
-}
+if ! "${MYSQL_CMD[@]}" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"; then
+  # Fallback para auth_socket cuando root no usa contraseña
+  if [ "$DB_USER" = "root" ] && [ -z "$DB_PASS" ]; then
+    echo "Intentando crear la base con mysql -u root (auth_socket)..."
+    if mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"; then
+      echo "Base $DB_NAME creada/verificada con auth_socket."
+    else
+      echo "No se pudo crear/verificar la base $DB_NAME. Verifica credenciales en install.sh y en settings.py"
+      echo "Prueba editar DB_USER/DB_PASS o ejecutar manualmente:"
+      echo "  mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS"
+      echo "Si usas auth_socket: mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \\`$DB_NAME\\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\""
+      exit 1
+    fi
+  else
+    echo "No se pudo crear/verificar la base $DB_NAME. Verifica credenciales en install.sh y en settings.py"
+    echo "Prueba editar DB_USER/DB_PASS o ejecutar manualmente:"
+    echo "  mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS"
+    echo "Si usas auth_socket: mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \\`$DB_NAME\\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\""
+    exit 1
+  fi
+fi
 
 echo "==> Aplicando migraciones Backend"
 $VENV_PY "$BACKEND_DIR/manage.py" migrate
