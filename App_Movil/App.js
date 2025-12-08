@@ -30,7 +30,7 @@ export default function App() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://192.168.56.1:8000/api/token/', {
+      const response = await fetch('http://192.168.1.50:8000/api/token/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rut: Rut, password: contraseña })
