@@ -68,10 +68,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8081",
+    "http://192.168.1.50:8081",
     "http://127.0.0.1:3000", 
-    "http://192.168.56.1:3000",
-    "http://localhost:5173", 
+    "http://192.168.1.50:3000",
+    "http://192.168.1.50:5173", 
 ]
 CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'Kivo_Asistencia.urls'
