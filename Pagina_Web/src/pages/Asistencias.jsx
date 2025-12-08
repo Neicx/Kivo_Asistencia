@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const API_URL = "http://192.168.56.1:8000/api";
+const API_URL = "http://192.168.1.50:8000/api";
 
 export default function Asistencias({ onVerPerfil, empresaId }) {
   const [data, setData] = useState([]);

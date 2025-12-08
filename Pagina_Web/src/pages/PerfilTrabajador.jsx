@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const API_URL = "http://192.168.56.1:8000/api";
+const API_URL = "http://192.168.1.50:8000/api";
 
 const tiposContrato = [
   { value: "contrato_por_obra", label: "Contrato por obra o faena" },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const API = "http://192.168.56.1:8000";
+const API = "http://192.168.1.50:8000";
 
 export default function Vacaciones({ user, empresaId }) {
   const [vacaciones, setVacaciones] = useState([]);

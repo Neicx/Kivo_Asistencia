@@ -8,9 +8,9 @@ import Vacaciones from "./pages/Vacaciones";
 import Reportes from "./pages/Reportes";
 import Auditoria from "./pages/Auditoria";
 import PerfilTrabajador from "./pages/PerfilTrabajador";
-import CrearUsuario from "./pages/CrearUsuario";
+import CrearUsuario from "./pages/Crearusuario";
 
-const API_URL = "http://192.168.56.1:8000/api";
+const API_URL = "http://192.168.1.50:8000/api";
 
 export default function App() {
   const [user, setUser] = useState(null);
