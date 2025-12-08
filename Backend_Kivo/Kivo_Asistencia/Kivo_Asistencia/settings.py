@@ -11,6 +11,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+# Forzar uso de PyMySQL como MySQLdb (evita requerir mysqlclient del sistema)
+try:
+    import pymysql
+
+    pymysql.install_as_MySQLdb()
+except Exception:
+    pass
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -98,12 +107,16 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'empresa_1',
-        'USER': 'root',
+        'USER': 'kivo',
         'PASSWORD': '',
-        'HOST':'127.0.0.1',
-        'PORT':'3306',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
+
 
 
 # Password validation
