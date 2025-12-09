@@ -19,7 +19,7 @@ export default function PerfilTrabajador({ trabajadorId, user, empresas = [] }) 
   const [message, setMessage] = useState("");
   const [editMode, setEditMode] = useState(false);
 
-  const canEdit = user?.role === "admin_rrhh";
+  const canEdit = ["admin_rrhh", "asistente_rrhh"].includes(user?.role);
 
   const cargarPerfil = async () => {
     if (!trabajadorId) {

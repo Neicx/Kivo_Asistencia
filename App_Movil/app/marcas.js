@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 👇 Ajusta esta URL según tu backend (sin /marcar/)
-const API_URL = "http://192.168.56.1:8000/api/asistencias/marcar/";
+const API_URL = "http://192.168.1.50:8000/api/asistencias/marcar/";
 
 export default function Marcas() {
   const [timeSeconds, setTimeSeconds] = useState(0);
